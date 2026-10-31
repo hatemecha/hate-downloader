@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hate-downloader"
+dynamic = ["version"]
+description = "Desktop app to search, analyze and download public media via yt-dlp"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "hatemecha"}
+]
+dependencies = [
+    "PySide6-Essentials>=6.6",
+    "yt-dlp[default]>=2026.8.19",
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+    "pydantic>=2.0",
+    "platformdirs>=4.0",
+    "lxml>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.3",
+]
+build = [
+    "pyinstaller>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hatemecha/hate-downloader"
+Issues = "https://github.com/hatemecha/hate-downloader/issues"
+Releases = "https://github.com/hatemecha/hate-downloader/releases"
+
+[project.scripts]
+hate-downloader = "app.main:run"
+
+[tool.setuptools.dynamic]
+version = {attr = "app.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["assets/icons/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

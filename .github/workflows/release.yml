@@ -1,0 +1,69 @@
+name: Build release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: HateDownloader-windows
+          - os: ubuntu-latest
+            artifact: HateDownloader-linux
+          - os: macos-latest
+            artifact: HateDownloader-macos
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Qt libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libglib2.0-0 libxkbcommon0 libdbus-1-3 libfontconfig1 libxcb-cursor0
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install ".[build]" -r requirements-dev.txt
+      - run: python -m ruff check .
+      - run: python -m pytest -q
+      - run: python scripts/build_exe.py
+      - if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/HateDownloader.exe, dist/LICENSE, dist/THIRD_PARTY.md, dist/README.md `
+            -DestinationPath dist/HateDownloader-windows.zip
+      - if: runner.os == 'Linux'
+        run: tar -czf dist/HateDownloader-linux.tar.gz -C dist HateDownloader LICENSE THIRD_PARTY.md README.md
+      - if: runner.os == 'macOS'
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent dist/HateDownloader.app dist/HateDownloader-macos.zip
+          zip -j dist/HateDownloader-macos.zip dist/LICENSE dist/THIRD_PARTY.md dist/README.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/HateDownloader-*
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes release-artifacts/*
